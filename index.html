@@ -22,7 +22,7 @@
             text-shadow: 0 0 10px #ff0055, 0 0 20px #ff0055, 0 0 40px #ff0055, 0 0 80px #ff0055;
         }
         .glass-panel {
-            background: rgba(10, 10, 15, 0.85);
+            background: rgba(10, 10, 15, 0.9);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 0, 85, 0.4);
@@ -37,15 +37,14 @@
             overflow: hidden;
             pointer-events: none;
         }
-        /* Make iframe cover full screen seamlessly */
         #player {
             position: absolute;
             top: 50%;
             left: 50%;
             width: 100vw;
-            height: 56.25vw; /* 16:9 aspect ratio */
+            height: 56.25vw;
             min-height: 100vh;
-            min-width: 177.78vh; /* 16:9 aspect ratio */
+            min-width: 177.78vh;
             transform: translate(-50%, -50%);
             border: none;
         }
@@ -58,8 +57,26 @@
         <div id="player"></div>
     </div>
 
-    <!-- Cyberpunk Dark Glassmorphic Overlay -->
-    <div id="overlay" class="absolute inset-0 z-50 flex items-center justify-center bg-black/90 transition-opacity duration-700 cursor-pointer">
+    <!-- Non-Chrome Warning Overlay (Hidden by default) -->
+    <div id="nonChromeOverlay" class="absolute inset-0 z-50 flex items-center justify-center bg-black/95 px-4 hidden">
+        <div class="glass-panel px-6 py-8 md:p-10 rounded-3xl text-center max-w-md w-full">
+            <div class="text-2xl md:text-3xl font-bold text-red-500 neon-red mb-4">
+                กรุณาเปิดผ่าน Google Chrome
+            </div>
+            <p class="text-gray-300 text-sm md:text-base mb-6 leading-relaxed">
+                แอปพลิเคชันนี้รองรับเฉพาะเบราว์เซอร์ Google Chrome เท่านั้น โปรดเปิดผ่าน Chrome เพื่อการใช้งานที่สมบูรณ์
+            </p>
+            <button id="openChromeBtn" class="w-full py-4 px-6 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white font-bold rounded-2xl shadow-lg transition-transform transform active:scale-95 text-base tracking-wide">
+                เปิดใน Google Chrome
+            </button>
+            <div id="fallbackMsg" class="mt-4 text-xs text-gray-500 hidden">
+                คัดลอกลิงก์สำเร็จแล้ว นำไปเปิดใน Google Chrome ได้เลยครับ
+            </div>
+        </div>
+    </div>
+
+    <!-- Chrome Interactive Overlay -->
+    <div id="chromeOverlay" class="absolute inset-0 z-50 flex items-center justify-center bg-black/90 transition-opacity duration-700 cursor-pointer hidden">
         <div class="glass-panel px-8 py-12 rounded-3xl text-center max-w-lg mx-4 transform transition-transform duration-300 hover:scale-105">
             <div class="text-3xl md:text-5xl font-bold text-red-500 neon-red tracking-wider mb-4">
                 กรุณากดหน้าจอ1ครั้ง
@@ -72,11 +89,67 @@
 
     <!-- YouTube IFrame Player API Script -->
     <script>
-        // Load YouTube IFrame API asynchronously
-        var tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        var firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        // Check if browser is Google Chrome
+        function isGoogleChrome() {
+            const ua = navigator.userAgent;
+            const isChromium = window.chrome;
+            const winNav = window.navigator;
+            const vendorName = winNav.vendor;
+            const isOpera = typeof window.opr !== "undefined";
+            const isIEedge = ua.indexOf("Edg") > -1;
+            const isIOSChrome = ua.indexOf("CriOS") > -1;
+            const isAndroidChrome = /android/i.test(ua) && /chrome/i.test(ua) && !isOpera && !isIEedge;
+
+            if (isIOSChrome || isAndroidChrome) return true;
+            
+            return isChromium !== null && typeof isChromium !== "undefined" && vendorName === "Google Inc." && !isOpera && !isIEedge;
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const isChrome = isGoogleChrome();
+            const nonChromeOverlay = document.getElementById('nonChromeOverlay');
+            const chromeOverlay = document.getElementById('chromeOverlay');
+
+            if (!isChrome) {
+                nonChromeOverlay.classList.remove('hidden');
+                
+                document.getElementById('openChromeBtn').addEventListener('click', () => {
+                    const currentUrl = window.location.href;
+                    const ua = navigator.userAgent || navigator.vendor || window.opera;
+                    
+                    if (/android/i.test(ua)) {
+                        let cleanUrl = currentUrl;
+                        if (cleanUrl.startsWith('http://')) {
+                            cleanUrl = cleanUrl.replace('http://', '');
+                            window.location.href = `intent://${cleanUrl}#Intent;scheme=http;package=com.android.chrome;end;`;
+                        } else if (cleanUrl.startsWith('https://')) {
+                            cleanUrl = cleanUrl.replace('https://', '');
+                            window.location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end;`;
+                        }
+                    } else {
+                        document.getElementById('fallbackMsg').classList.remove('hidden');
+                        try {
+                            const dummy = document.createElement('input');
+                            document.body.appendChild(dummy);
+                            dummy.value = currentUrl;
+                            dummy.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(dummy);
+                            document.getElementById('openChromeBtn').innerText = 'คัดลอกลิงก์แล้ว';
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+                });
+            } else {
+                chromeOverlay.classList.remove('hidden');
+
+                var tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                var firstScriptTag = document.getElementsByTagName('script')[0];
+                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            }
+        });
 
         var player;
         function onYouTubeIframeAPIReady() {
@@ -86,7 +159,7 @@
                 videoId: 'dQw4w9WgXcQ',
                 playerVars: {
                     'autoplay': 1,
-                    'mute': 1, // Start muted to satisfy browser autoplay policies
+                    'mute': 1,
                     'controls': 0,
                     'loop': 1,
                     'playlist': 'dQw4w9WgXcQ',
@@ -105,10 +178,8 @@
             event.target.playVideo();
         }
 
-        // Handle click event on the overlay
-        const overlay = document.getElementById('overlay');
-        overlay.addEventListener('click', () => {
-            // 1. Trigger Fullscreen Mode
+        const chromeOverlay = document.getElementById('chromeOverlay');
+        chromeOverlay.addEventListener('click', () => {
             const docEl = document.documentElement;
             if (docEl.requestFullscreen) {
                 docEl.requestFullscreen();
@@ -120,17 +191,15 @@
                 docEl.msRequestFullscreen();
             }
 
-            // 2. Unmute and set maximum volume (100%)
             if (player && typeof player.unMute === 'function') {
                 player.unMute();
                 player.setVolume(100);
                 player.playVideo();
             }
 
-            // 3. Smooth fade-out and hide overlay
-            overlay.style.opacity = '0';
+            chromeOverlay.style.opacity = '0';
             setTimeout(() => {
-                overlay.style.display = 'none';
+                chromeOverlay.style.display = 'none';
             }, 700);
         });
     </script>
